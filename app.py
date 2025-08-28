@@ -1,33 +1,57 @@
 from flask import Flask, render_template, request
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # loads OPENAI_API_KEY from .env
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
+# Create OpenAI client (will read api_key from env if not passed)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        role = request.form.get("role", "").strip()
+        skills = request.form.get("skills", "").strip()
+        experience = request.form.get("experience", "").strip()  # optional
+
+        # Build prompts
+        resume_prompt = (
+            f"Create a professional resume for {name} applying for a {role} role. "
+            f"Highlight these skills: {skills}. Include a short experience section: {experience}."
+        )
+
+        cover_prompt = (
+            f"Write a concise, professional cover letter for {name} for a {role} role. "
+            f"Mention skills: {skills} and briefly reference this experience: {experience}."
+        )
+
+        # Use the new chat completions API
+        resume_resp = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role":"user", "content": resume_prompt}],
+            max_tokens=700,
+            temperature=0.2,
+        )
+
+        cover_resp = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role":"user", "content": cover_prompt}],
+            max_tokens=450,
+            temperature=0.2,
+        )
+
+        # Extract the text out of responses
+        resume = resume_resp.choices[0].message.content.strip()
+        cover_letter = cover_resp.choices[0].message.content.strip()
+
+        return render_template("result.html", name=name, role=role, resume=resume, cover_letter=cover_letter)
+
     return render_template("index.html")
 
-@app.route("/generate", methods=["POST"])
-def generate():
-    name = request.form.get("name")
-    job_title = request.form.get("job_title")
-    skills = request.form.get("skills")
-
-    # Temporary placeholder (we'll wire real AI next)
-    resume = (
-        f"{name}\n\nTarget Role: {job_title}\n\nSkills: {skills}\n\n"
-        "Experience:\n- Describe your recent role and achievements here.\n"
-        "- Add metrics (e.g., increased sales by 20%, reduced costs by 15%).\n"
-    )
-
-    cover_letter = (
-        f"Dear Hiring Manager,\n\nI’m excited to apply for the {job_title} role. "
-        f"My background and skills in {skills} make me a strong fit. "
-        "I’m eager to contribute measurable impact to your team.\n\n"
-        "Sincerely,\n"
-        f"{name}"
-    )
-
-    return render_template("result.html", resume=resume, cover_letter=cover_letter)
 
 if __name__ == "__main__":
     app.run(debug=True)
