@@ -56,7 +56,6 @@ pyphen==0.17.2
 python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.1.1
-pywin32==311
 pyzmq==27.0.2
 reportlab==4.4.3
 six==1.17.0
